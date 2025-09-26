@@ -1,26 +1,24 @@
 package main
 
 import (
-	"fmt"
+	"log/slog"
+	"os"
 
-	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/kmtym1998/gh-metric/cmd"
+	"github.com/lmittmann/tint"
 )
 
 func main() {
-	fmt.Println("hi world, this is the gh-metric extension!")
-	client, err := api.DefaultRESTClient()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	response := struct {Login string}{}
-	err = client.Get("user", &response)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Printf("running as %s\n", response.Login)
-}
+	// Initialize structured logging
+	logger := slog.New(tint.NewHandler(os.Stderr, &tint.Options{
+		Level:     slog.LevelInfo,
+		AddSource: true,
+	}))
+	slog.SetDefault(logger)
 
-// For more examples of using go-gh, see:
-// https://github.com/cli/go-gh/blob/trunk/example_gh_test.go
+	// Execute the root command
+	if err := cmd.Execute(); err != nil {
+		slog.Error("Command execution failed", "error", err)
+		os.Exit(1)
+	}
+}
