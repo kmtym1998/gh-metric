@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
-	"strings"
 )
 
 // Service provides GitHub API operations
@@ -36,8 +35,8 @@ type FetchPROptions struct {
 	Limit           int
 }
 
-// FetchMergedPRMetrics fetches and calculates metrics for merged pull requests
-func (s *Service) FetchMergedPRMetrics(ctx context.Context, opts FetchPROptions) ([]PRMetrics, error) {
+// FetchMergedPRs fetches merged pull requests from GitHub API
+func (s *Service) FetchMergedPRs(ctx context.Context, opts FetchPROptions) ([]PullRequest, error) {
 	// Build the search query
 	queryBuilder := NewSearchQueryBuilder()
 	queryBuilder.AddRepository(opts.Owner, opts.Repo)
@@ -84,30 +83,5 @@ func (s *Service) FetchMergedPRMetrics(ctx context.Context, opts FetchPROptions)
 	}
 
 	slog.Info("Total PRs fetched", "count", len(allPRs))
-
-	// Calculate metrics for each PR
-	metrics := make([]PRMetrics, 0, len(allPRs))
-	for _, pr := range allPRs {
-		prMetrics := CalculateMetrics(pr, opts.ExcludeWeekends)
-		metrics = append(metrics, prMetrics)
-	}
-
-	return metrics, nil
-}
-
-// ParseTargetUsers parses the comma-separated target users string
-func ParseTargetUsers(targetUsers string) []string {
-	if targetUsers == "" {
-		return nil
-	}
-
-	users := strings.Split(targetUsers, ",")
-	result := make([]string, 0, len(users))
-	for _, user := range users {
-		if trimmed := strings.TrimSpace(user); trimmed != "" {
-			result = append(result, trimmed)
-		}
-	}
-
-	return result
+	return allPRs, nil
 }

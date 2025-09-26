@@ -106,6 +106,18 @@ func (b *SearchQueryBuilder) AddDateRange(since, until string) *SearchQueryBuild
 	return b
 }
 
+// AddAuthors adds author filters to the query
+func (b *SearchQueryBuilder) AddAuthors(authors []string) *SearchQueryBuilder {
+	if len(authors) > 0 {
+		authorQueries := make([]string, len(authors))
+		for i, author := range authors {
+			authorQueries[i] = fmt.Sprintf("author:%s", strings.TrimSpace(author))
+		}
+		b.parts = append(b.parts, fmt.Sprintf("(%s)", strings.Join(authorQueries, " OR ")))
+	}
+	return b
+}
+
 // AddRepository adds repository filter to the query
 func (b *SearchQueryBuilder) AddRepository(owner, repo string) *SearchQueryBuilder {
 	if owner != "" && repo != "" {

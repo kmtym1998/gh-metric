@@ -7,19 +7,19 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/kmtym1998/gh-metric/internal/github"
+	"github.com/kmtym1998/gh-metric/internal/usecase"
 )
 
 // Formatter interface for different output formats
 type Formatter interface {
-	Format(metrics []github.PRMetrics, writer io.Writer) error
+	Format(metrics []usecase.PRMetric, writer io.Writer) error
 }
 
 // JSONFormatter formats output as JSON
 type JSONFormatter struct{}
 
 // Format implements Formatter for JSON output
-func (f *JSONFormatter) Format(metrics []github.PRMetrics, writer io.Writer) error {
+func (f *JSONFormatter) Format(metrics []usecase.PRMetric, writer io.Writer) error {
 	encoder := json.NewEncoder(writer)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(metrics)
@@ -29,7 +29,7 @@ func (f *JSONFormatter) Format(metrics []github.PRMetrics, writer io.Writer) err
 type CSVFormatter struct{}
 
 // Format implements Formatter for CSV output
-func (f *CSVFormatter) Format(metrics []github.PRMetrics, writer io.Writer) error {
+func (f *CSVFormatter) Format(metrics []usecase.PRMetric, writer io.Writer) error {
 	csvWriter := csv.NewWriter(writer)
 	defer csvWriter.Flush()
 

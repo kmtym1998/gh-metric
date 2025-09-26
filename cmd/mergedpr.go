@@ -12,6 +12,7 @@ import (
 
 	"github.com/kmtym1998/gh-metric/internal/github"
 	"github.com/kmtym1998/gh-metric/internal/output"
+	"github.com/kmtym1998/gh-metric/internal/usecase"
 )
 
 type mergedPRFlags struct {
@@ -60,37 +61,34 @@ func runMergedPR(cmd *cobra.Command, args []string) error {
 		"until", flags.until,
 		"output", flags.output,
 		"excludeWeekends", flags.excludeWeekends,
-		"targetUsers", flags.targetUsers)
+		"targetUsers", flags.targetUsers,
+		"limit", flags.limit,
+	)
 
 	// Validate flags
 	if err := validateFlags(); err != nil {
 		return fmt.Errorf("flag validation failed: %w", err)
 	}
 
-	// Get repository information
-	repoInfo, err := getRepositoryInfo(args)
-	if err != nil {
-		return fmt.Errorf("failed to determine repository: %w", err)
-	}
-
-	slog.Info("Analyzing repository", "owner", repoInfo.Owner, "repo", repoInfo.Repo)
-
-	// Create GitHub service
-	service, err := createGitHubService()
+	// Create dependencies
+	githubService, err := createGitHubService()
 	if err != nil {
 		return fmt.Errorf("failed to create GitHub service: %w", err)
 	}
 
-	// Fetch PR metrics
-	metrics, err := fetchPRMetrics(service, repoInfo)
+	// Create usecase
+	aggregateUsecase := usecase.NewAggregateMergedPRUsecase(githubService)
+
+	// Execute usecase
+	response, err := executeUsecase(aggregateUsecase)
 	if err != nil {
-		return fmt.Errorf("failed to fetch PR metrics: %w", err)
+		return fmt.Errorf("failed to execute usecase: %w", err)
 	}
 
-	slog.Info("Analysis complete", "prCount", len(metrics))
+	slog.Info("Analysis complete", "prCount", len(response.Items))
 
 	// Format and output results
-	if err := outputResults(metrics); err != nil {
+	if err := outputResults(response.Items); err != nil {
 		return fmt.Errorf("failed to output results: %w", err)
 	}
 
@@ -137,23 +135,29 @@ func createGitHubService() (*github.Service, error) {
 	return github.NewService()
 }
 
-func fetchPRMetrics(service *github.Service, repoInfo *github.RepoInfo) ([]github.PRMetrics, error) {
-	targetUsers := github.ParseTargetUsers(flags.targetUsers)
+func executeUsecase(aggregateUsecase *usecase.AggregateMergedPRUsecase) (*usecase.AggregateMergedPROutput, error) {
+	targetUsers := parseTargetUsers(flags.targetUsers)
 
 	var repoOwner, repoName string
 	if flags.repo != "" {
 		parts := strings.Split(flags.repo, "/")
 		if len(parts) != 2 {
-			return nil, fmt.Errorf("invalid repository format: %s (expected owner/repo)", flags.repo)
+			return nil, fmt.Errorf("invalid repo format: %s. Use owner/repo", flags.repo)
 		}
 		repoOwner = parts[0]
 		repoName = parts[1]
 	} else {
+		repoInfo, err := getRepositoryInfo(os.Args)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get repository info: %w", err)
+		}
 		repoOwner = repoInfo.Owner
 		repoName = repoInfo.Repo
 	}
 
-	opts := github.FetchPROptions{
+	slog.Info("Analyzing repository", "owner", repoOwner, "repo", repoName)
+
+	input := usecase.AggregateMergedPRInput{
 		Owner:           repoOwner,
 		Repo:            repoName,
 		Since:           flags.since,
@@ -163,14 +167,31 @@ func fetchPRMetrics(service *github.Service, repoInfo *github.RepoInfo) ([]githu
 		Limit:           flags.limit,
 	}
 
-	return service.FetchMergedPRMetrics(context.Background(), opts)
+	return aggregateUsecase.Execute(context.Background(), input)
 }
 
-func outputResults(metrics []github.PRMetrics) error {
+func outputResults(metrics []usecase.PRMetric) error {
 	formatter, err := output.GetFormatter(flags.output)
 	if err != nil {
 		return err
 	}
 
 	return formatter.Format(metrics, os.Stdout)
+}
+
+// parseTargetUsers parses the comma-separated target users string
+func parseTargetUsers(targetUsers string) []string {
+	if targetUsers == "" {
+		return nil
+	}
+
+	users := strings.Split(targetUsers, ",")
+	result := make([]string, 0, len(users))
+	for _, user := range users {
+		if trimmed := strings.TrimSpace(user); trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+
+	return result
 }

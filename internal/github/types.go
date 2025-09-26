@@ -69,23 +69,6 @@ type Review struct {
 	SubmittedAt time.Time `json:"submittedAt"`
 }
 
-// Processed PR metrics
-type PRMetrics struct {
-	Number            int       `json:"number"`
-	Title             string    `json:"title"`
-	Author            string    `json:"author"`
-	CreatedAt         time.Time `json:"createdAt"`
-	URL               string    `json:"url"`
-	UntilFirstReview  float64   `json:"until_first_review"`  // hours
-	UntilFirstApprove float64   `json:"until_first_approve"` // hours
-	UntilMerge        float64   `json:"until_merge"`         // hours
-	CommentCount      int       `json:"comment_count"`
-	ChangedFiles      int       `json:"changed_files"`
-	Additions         int       `json:"additions"`
-	Deletions         int       `json:"deletions"`
-	Reviewers         string    `json:"reviewers"` // comma-separated
-}
-
 // GraphQL query variables
 type QueryVariables struct {
 	Query  string  `json:"query"`
