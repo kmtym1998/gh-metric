@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -71,7 +70,7 @@ func runMergedPR(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create dependencies
-	githubService, err := createGitHubService()
+	githubService, err := github.NewService()
 	if err != nil {
 		return fmt.Errorf("failed to create GitHub service: %w", err)
 	}
@@ -79,16 +78,46 @@ func runMergedPR(cmd *cobra.Command, args []string) error {
 	// Create usecase
 	aggregateUsecase := usecase.NewAggregateMergedPRUsecase(githubService)
 
-	// Execute usecase
-	response, err := executeUsecase(aggregateUsecase)
+	targetUsers := parseTargetUsers(flags.targetUsers)
+
+	var repoOwner, repoName string
+	if flags.repo != "" {
+		parts := strings.Split(flags.repo, "/")
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid repo format: %s. Use owner/repo", flags.repo)
+		}
+		repoOwner = parts[0]
+		repoName = parts[1]
+	} else {
+		repoInfo, err := github.GetRepoInfoFromArgs(os.Args)
+		if err != nil {
+			return fmt.Errorf("failed to get repository info: %w", err)
+		}
+		repoOwner = repoInfo.Owner
+		repoName = repoInfo.Repo
+	}
+
+	slog.Info("Analyzing repository", "owner", repoOwner, "repo", repoName)
+
+	input := usecase.AggregateMergedPRInput{
+		Owner:           repoOwner,
+		Repo:            repoName,
+		Since:           flags.since,
+		Until:           flags.until,
+		TargetUsers:     targetUsers,
+		ExcludeWeekends: flags.excludeWeekends,
+		Limit:           flags.limit,
+	}
+
+	output, err := aggregateUsecase.Execute(cmd.Context(), input)
 	if err != nil {
 		return fmt.Errorf("failed to execute usecase: %w", err)
 	}
 
-	slog.Info("Analysis complete", "prCount", len(response.Items))
+	slog.Info("Analysis complete", "prCount", len(output.Items))
 
 	// Format and output results
-	if err := outputResults(response.Items); err != nil {
+	if err := outputResults(output.Items); err != nil {
 		return fmt.Errorf("failed to output results: %w", err)
 	}
 
@@ -125,49 +154,6 @@ func validateFlags() error {
 	}
 
 	return nil
-}
-
-func getRepositoryInfo(args []string) (*github.RepoInfo, error) {
-	return github.GetRepoInfoFromArgs(args)
-}
-
-func createGitHubService() (*github.Service, error) {
-	return github.NewService()
-}
-
-func executeUsecase(aggregateUsecase *usecase.AggregateMergedPRUsecase) (*usecase.AggregateMergedPROutput, error) {
-	targetUsers := parseTargetUsers(flags.targetUsers)
-
-	var repoOwner, repoName string
-	if flags.repo != "" {
-		parts := strings.Split(flags.repo, "/")
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("invalid repo format: %s. Use owner/repo", flags.repo)
-		}
-		repoOwner = parts[0]
-		repoName = parts[1]
-	} else {
-		repoInfo, err := getRepositoryInfo(os.Args)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get repository info: %w", err)
-		}
-		repoOwner = repoInfo.Owner
-		repoName = repoInfo.Repo
-	}
-
-	slog.Info("Analyzing repository", "owner", repoOwner, "repo", repoName)
-
-	input := usecase.AggregateMergedPRInput{
-		Owner:           repoOwner,
-		Repo:            repoName,
-		Since:           flags.since,
-		Until:           flags.until,
-		TargetUsers:     targetUsers,
-		ExcludeWeekends: flags.excludeWeekends,
-		Limit:           flags.limit,
-	}
-
-	return aggregateUsecase.Execute(context.Background(), input)
 }
 
 func outputResults(metrics []usecase.PRMetric) error {
