@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/kmtym1998/gh-metric/internal/github"
@@ -19,6 +18,7 @@ type AggregateMergedPRInput struct {
 	TargetUsers     []string
 	ExcludeWeekends bool
 	Limit           int
+	IncludeBot      bool
 }
 
 // AggregateMergedPROutput contains the result of the aggregate merged PR use case
@@ -40,7 +40,9 @@ type PRMetric struct {
 	ChangedFiles      int       `json:"changed_files"`
 	Additions         int       `json:"additions"`
 	Deletions         int       `json:"deletions"`
-	Reviewers         string    `json:"reviewers"` // comma-separated
+	ApprovedBy        []string  `json:"approved_by"`       // list of user IDs who approved
+	FirstReviewedBy   string    `json:"first_reviewed_by"` // user ID who gave the first review
+	FirstApprovedBy   string    `json:"first_approved_by"` // user ID who gave the first approval
 }
 
 // GitHubRepository interface defines what we need from GitHub API
@@ -68,7 +70,8 @@ func (uc *AggregateMergedPRUsecase) Execute(ctx context.Context, req AggregateMe
 		"since", req.Since,
 		"until", req.Until,
 		"targetUsers", req.TargetUsers,
-		"excludeWeekends", req.ExcludeWeekends)
+		"excludeWeekends", req.ExcludeWeekends,
+		"includeBot", req.IncludeBot)
 
 	// Convert request to GitHub API options
 	opts := github.FetchPROptions{
@@ -92,7 +95,7 @@ func (uc *AggregateMergedPRUsecase) Execute(ctx context.Context, req AggregateMe
 	// Calculate metrics for each PR
 	metrics := make([]PRMetric, 0, len(prs))
 	for _, pr := range prs {
-		metric := uc.calculatePRMetrics(pr, req.ExcludeWeekends)
+		metric := uc.calculatePRMetrics(pr, req.ExcludeWeekends, req.IncludeBot)
 		metrics = append(metrics, metric)
 	}
 
@@ -104,7 +107,7 @@ func (uc *AggregateMergedPRUsecase) Execute(ctx context.Context, req AggregateMe
 }
 
 // calculatePRMetrics processes raw PR data and calculates lead time metrics
-func (uc *AggregateMergedPRUsecase) calculatePRMetrics(pr github.PullRequest, excludeWeekends bool) PRMetric {
+func (uc *AggregateMergedPRUsecase) calculatePRMetrics(pr github.PullRequest, excludeWeekends bool, includeBot bool) PRMetric {
 	metric := PRMetric{
 		Number:       pr.Number,
 		Title:        pr.Title,
@@ -127,29 +130,54 @@ func (uc *AggregateMergedPRUsecase) calculatePRMetrics(pr github.PullRequest, ex
 		}
 	}
 
-	// Find the earliest review time and first approval time
+	// Find the earliest review time, first approval time, and collect review information
 	var firstReviewTime *time.Time
 	var firstApproveTime *time.Time
-	reviewers := make(map[string]bool)
+	var firstReviewedBy string
+	var firstApprovedBy string
+	approvedByMap := make(map[string]bool) // Use map to avoid duplicates
 
 	for _, review := range pr.Reviews.Nodes {
-		reviewers[review.Author.Login] = true
+		author := review.Author.Login
 
+		// Skip bot reviews if includeBot is false
+		if !includeBot && IsBot(author) {
+			continue
+		}
+
+		// Skip author's own reviews
+		if author == pr.Author.Login {
+			continue
+		}
+
+		// Track first review (any review type)
 		if firstReviewTime == nil || review.SubmittedAt.Before(*firstReviewTime) {
 			firstReviewTime = &review.SubmittedAt
+			firstReviewedBy = author
 		}
 
-		if review.State == "APPROVED" && (firstApproveTime == nil || review.SubmittedAt.Before(*firstApproveTime)) {
-			firstApproveTime = &review.SubmittedAt
+		// Track approvals
+		if review.State == "APPROVED" || review.State == "DISMISSED" {
+			approvedByMap[author] = true
+
+			// Track first approval
+			if firstApproveTime == nil || review.SubmittedAt.Before(*firstApproveTime) {
+				firstApproveTime = &review.SubmittedAt
+				firstApprovedBy = author
+			}
 		}
 	}
 
-	// Convert reviewers map to comma-separated string
-	reviewerList := make([]string, 0, len(reviewers))
-	for reviewer := range reviewers {
-		reviewerList = append(reviewerList, reviewer)
+	// Convert approvers map to slice
+	approvedBy := make([]string, 0, len(approvedByMap))
+	for approver := range approvedByMap {
+		approvedBy = append(approvedBy, approver)
 	}
-	metric.Reviewers = strings.Join(reviewerList, ",")
+
+	// Set the review information
+	metric.ApprovedBy = approvedBy
+	metric.FirstReviewedBy = firstReviewedBy
+	metric.FirstApprovedBy = firstApprovedBy
 
 	// Calculate lead times if we have a review assignment time
 	if reviewAssignTime != nil {

@@ -22,6 +22,7 @@ type mergedPRFlags struct {
 	excludeWeekends bool
 	targetUsers     string
 	limit           int
+	includeBot      bool
 }
 
 var mergedPRCmd = &cobra.Command{
@@ -51,6 +52,7 @@ func init() {
 	mergedPRCmd.Flags().BoolVar(&flags.excludeWeekends, "exclude-weekends", false, "Exclude weekends from lead time calculations")
 	mergedPRCmd.Flags().StringVar(&flags.targetUsers, "target-user", "", "Only include PRs created by these users (comma-separated)")
 	mergedPRCmd.Flags().IntVar(&flags.limit, "limit", 10, "Limit the number of PRs to analyze")
+	mergedPRCmd.Flags().BoolVar(&flags.includeBot, "include-bot", false, "Include bot reviews (e.g., GitHub Copilot) in metrics calculation")
 }
 
 func runMergedPR(cmd *cobra.Command, args []string) error {
@@ -62,6 +64,7 @@ func runMergedPR(cmd *cobra.Command, args []string) error {
 		"excludeWeekends", flags.excludeWeekends,
 		"targetUsers", flags.targetUsers,
 		"limit", flags.limit,
+		"includeBot", flags.includeBot,
 	)
 
 	// Validate flags
@@ -107,6 +110,7 @@ func runMergedPR(cmd *cobra.Command, args []string) error {
 		TargetUsers:     targetUsers,
 		ExcludeWeekends: flags.excludeWeekends,
 		Limit:           flags.limit,
+		IncludeBot:      flags.includeBot,
 	}
 
 	output, err := aggregateUsecase.Execute(cmd.Context(), input)

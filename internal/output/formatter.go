@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 
 	"github.com/kmtym1998/gh-metric/internal/usecase"
 )
@@ -47,7 +48,9 @@ func (f *CSVFormatter) Format(metrics []usecase.PRMetric, writer io.Writer) erro
 		"changed_files",
 		"additions",
 		"deletions",
-		"reviewers",
+		"approved_by",
+		"first_reviewed_by",
+		"first_approved_by",
 	}
 
 	if err := csvWriter.Write(header); err != nil {
@@ -69,7 +72,9 @@ func (f *CSVFormatter) Format(metrics []usecase.PRMetric, writer io.Writer) erro
 			strconv.Itoa(metric.ChangedFiles),
 			strconv.Itoa(metric.Additions),
 			strconv.Itoa(metric.Deletions),
-			metric.Reviewers,
+			strings.Join(metric.ApprovedBy, ","),
+			metric.FirstReviewedBy,
+			metric.FirstApprovedBy,
 		}
 
 		if err := csvWriter.Write(row); err != nil {
