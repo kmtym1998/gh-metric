@@ -67,24 +67,43 @@ func runMergedPR(cmd *cobra.Command, args []string) error {
 		"includeBot", flags.includeBot,
 	)
 
+	slog.Debug("Command args", "args", args)
+	slog.Debug("Flag values",
+		"repo", flags.repo,
+		"since", flags.since,
+		"until", flags.until,
+		"output", flags.output,
+		"excludeWeekends", flags.excludeWeekends,
+		"targetUsers", flags.targetUsers,
+		"limit", flags.limit,
+		"includeBot", flags.includeBot,
+	)
+
 	// Validate flags
 	if err := validateFlags(); err != nil {
+		slog.Error("Flag validation failed", "error", err)
 		return fmt.Errorf("flag validation failed: %w", err)
 	}
+
+	slog.Debug("Flags validated successfully")
 
 	// Create dependencies
 	githubService, err := github.NewService()
 	if err != nil {
-		return fmt.Errorf("failed to create GitHub service: %w", err)
+		slog.Error("Failed to create GitHub client", "error", err)
+		return fmt.Errorf("failed to create GitHub client: %w", err)
 	}
+	slog.Debug("GitHub client created successfully")
 
 	// Create usecase
+	slog.Debug("Creating aggregate usecase")
 	aggregateUsecase := usecase.NewAggregateMergedPRUsecase(githubService)
 
 	targetUsers := parseTargetUsers(flags.targetUsers)
 
 	var repoOwner, repoName string
 	if flags.repo != "" {
+		slog.Debug("Using repo from flag", "repo", flags.repo)
 		parts := strings.Split(flags.repo, "/")
 		if len(parts) != 2 {
 			return fmt.Errorf("invalid repo format: %s. Use owner/repo", flags.repo)
@@ -92,12 +111,15 @@ func runMergedPR(cmd *cobra.Command, args []string) error {
 		repoOwner = parts[0]
 		repoName = parts[1]
 	} else {
+		slog.Debug("Detecting repo from git remote")
 		repoInfo, err := github.GetRepoInfoFromArgs(os.Args)
 		if err != nil {
+			slog.Error("Failed to get repository info", "error", err)
 			return fmt.Errorf("failed to get repository info: %w", err)
 		}
 		repoOwner = repoInfo.Owner
 		repoName = repoInfo.Repo
+		slog.Debug("Detected repository", "owner", repoOwner, "repo", repoName)
 	}
 
 	slog.Info("Analyzing repository", "owner", repoOwner, "repo", repoName)
@@ -113,18 +135,24 @@ func runMergedPR(cmd *cobra.Command, args []string) error {
 		IncludeBot:      flags.includeBot,
 	}
 
+	slog.Debug("Usecase input prepared", "input", fmt.Sprintf("%+v", input))
+
 	output, err := aggregateUsecase.Execute(cmd.Context(), input)
 	if err != nil {
+		slog.Error("Failed to aggregate PR metrics", "error", err)
 		return fmt.Errorf("failed to execute usecase: %w", err)
 	}
 
 	slog.Info("Analysis complete", "prCount", len(output.Items))
 
 	// Format and output results
+	slog.Debug("Formatting output", "format", flags.output)
 	if err := outputResults(output.Items); err != nil {
+		slog.Error("Failed to output results", "error", err)
 		return fmt.Errorf("failed to output results: %w", err)
 	}
 
+	slog.Debug("Results output successfully")
 	return nil
 }
 

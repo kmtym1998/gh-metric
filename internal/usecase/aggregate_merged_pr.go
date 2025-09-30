@@ -73,6 +73,8 @@ func (uc *AggregateMergedPRUsecase) Execute(ctx context.Context, req AggregateMe
 		"excludeWeekends", req.ExcludeWeekends,
 		"includeBot", req.IncludeBot)
 
+	slog.Debug("input parameters", "request", fmt.Sprintf("%+v", req))
+
 	// Convert request to GitHub API options
 	opts := github.FetchPROptions{
 		Owner:           req.Owner,
@@ -84,19 +86,30 @@ func (uc *AggregateMergedPRUsecase) Execute(ctx context.Context, req AggregateMe
 		Limit:           req.Limit,
 	}
 
+	slog.Debug("GitHub API options", "opts", fmt.Sprintf("%+v", opts))
+
 	// Fetch PRs from GitHub
+	slog.Debug("Fetching PRs from GitHub")
 	prs, err := uc.githubRepo.FetchMergedPRs(ctx, opts)
 	if err != nil {
+		slog.Error("Failed to fetch merged PRs", "error", err)
 		return nil, fmt.Errorf("failed to fetch merged PRs: %w", err)
 	}
 
 	slog.Info("Fetched PRs from GitHub", "count", len(prs))
 
 	// Calculate metrics for each PR
+	slog.Debug("Calculating metrics for PRs", "count", len(prs))
 	metrics := make([]PRMetric, 0, len(prs))
-	for _, pr := range prs {
+	for i, pr := range prs {
+		slog.Debug("Processing PR", "index", i+1, "total", len(prs), "prNumber", pr.Number, "title", pr.Title)
 		metric := uc.calculatePRMetrics(pr, req.ExcludeWeekends, req.IncludeBot)
 		metrics = append(metrics, metric)
+		slog.Debug("Calculated metrics for PR", "prNumber", pr.Number,
+			"untilFirstReview", metric.UntilFirstReview,
+			"untilFirstApprove", metric.UntilFirstApprove,
+			"untilMerge", metric.UntilMerge,
+		)
 	}
 
 	slog.Info("Calculated PR metrics", "count", len(metrics))
@@ -108,6 +121,8 @@ func (uc *AggregateMergedPRUsecase) Execute(ctx context.Context, req AggregateMe
 
 // calculatePRMetrics processes raw PR data and calculates lead time metrics
 func (uc *AggregateMergedPRUsecase) calculatePRMetrics(pr github.PullRequest, excludeWeekends bool, includeBot bool) PRMetric {
+	slog.Debug("Calculating metrics for PR", "number", pr.Number, "title", pr.Title, "author", pr.Author.Login)
+
 	metric := PRMetric{
 		Number:       pr.Number,
 		Title:        pr.Title,
@@ -120,6 +135,13 @@ func (uc *AggregateMergedPRUsecase) calculatePRMetrics(pr github.PullRequest, ex
 		Deletions:    pr.Deletions,
 	}
 
+	slog.Debug("Basic metrics set", "prNumber", pr.Number,
+		"commentCount", metric.CommentCount,
+		"changedFiles", metric.ChangedFiles,
+		"additions", metric.Additions,
+		"deletions", metric.Deletions,
+	)
+
 	// Find the earliest reviewer assignment time
 	var reviewAssignTime *time.Time
 	for _, item := range pr.TimelineItems.Nodes {
@@ -129,6 +151,7 @@ func (uc *AggregateMergedPRUsecase) calculatePRMetrics(pr github.PullRequest, ex
 			}
 		}
 	}
+	slog.Debug("Review requests processed", "prNumber", pr.Number, "earliestAssignTime", reviewAssignTime)
 
 	// Find the earliest review time, first approval time, and collect review information
 	var firstReviewTime *time.Time
@@ -142,11 +165,13 @@ func (uc *AggregateMergedPRUsecase) calculatePRMetrics(pr github.PullRequest, ex
 
 		// Skip bot reviews if includeBot is false
 		if !includeBot && IsBot(author) {
+			slog.Debug("Skipped bot review", "prNumber", pr.Number, "author", author, "state", review.State)
 			continue
 		}
 
 		// Skip author's own reviews
 		if author == pr.Author.Login {
+			slog.Debug("Skipped self review", "prNumber", pr.Number, "author", author, "state", review.State)
 			continue
 		}
 
@@ -154,6 +179,7 @@ func (uc *AggregateMergedPRUsecase) calculatePRMetrics(pr github.PullRequest, ex
 		if firstReviewTime == nil || review.SubmittedAt.Before(*firstReviewTime) {
 			firstReviewTime = &review.SubmittedAt
 			firstReviewedBy = author
+			slog.Debug("New first review", "prNumber", pr.Number, "author", author, "submittedAt", review.SubmittedAt, "state", review.State)
 		}
 
 		// Track approvals
@@ -164,6 +190,7 @@ func (uc *AggregateMergedPRUsecase) calculatePRMetrics(pr github.PullRequest, ex
 			if firstApproveTime == nil || review.SubmittedAt.Before(*firstApproveTime) {
 				firstApproveTime = &review.SubmittedAt
 				firstApprovedBy = author
+				slog.Debug("New first approval", "prNumber", pr.Number, "author", author, "submittedAt", review.SubmittedAt, "state", review.State)
 			}
 		}
 	}
@@ -192,6 +219,13 @@ func (uc *AggregateMergedPRUsecase) calculatePRMetrics(pr github.PullRequest, ex
 		if !pr.MergedAt.IsZero() {
 			metric.UntilMerge = uc.calculateHoursDifference(*reviewAssignTime, pr.MergedAt, excludeWeekends)
 		}
+
+		slog.Debug("Lead times calculated", "prNumber", pr.Number,
+			"untilFirstReview", metric.UntilFirstReview,
+			"untilFirstApprove", metric.UntilFirstApprove,
+			"untilMerge", metric.UntilMerge,
+			"excludeWeekends", excludeWeekends,
+		)
 	} else {
 		slog.Warn("No reviewer assignment found for PR", "number", pr.Number)
 	}
