@@ -6,6 +6,7 @@ require (
 	github.com/cli/go-gh/v2 v2.12.2
 	github.com/go-git/go-git/v5 v5.16.2
 	github.com/lmittmann/tint v1.1.2
+	github.com/samber/lo v1.51.0
 	github.com/spf13/cobra v1.10.1
 )
 

@@ -87,7 +87,8 @@ func GetRepoInfoFromArgs(args []string) (*RepoInfo, error) {
 				Repo:  parts[1],
 			}, nil
 		}
-		return nil, fmt.Errorf("invalid repository format: %s (expected owner/repo)", args[0])
+		return GetCurrentRepoInfo()
+
 	}
 
 	// Try to detect from current directory

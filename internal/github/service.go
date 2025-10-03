@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+
+	"github.com/samber/lo"
 )
 
 // Service provides GitHub API operations
@@ -62,7 +64,7 @@ func (s *Service) FetchMergedPRs(ctx context.Context, opts FetchPROptions) ([]Pu
 	// Paginate through all results
 	for {
 		pageCount++
-		slog.Debug("Fetching page", "pageNumber", pageCount, "cursor", cursor)
+		slog.Debug("Fetching page", "pageNumber", pageCount, "cursor", lo.FromPtr(cursor))
 
 		variables := QueryVariables{
 			Query:  searchQuery,

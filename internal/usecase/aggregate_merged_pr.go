@@ -28,6 +28,7 @@ type AggregateMergedPROutput struct {
 
 // PRMetric represents the calculated metrics for a single Pull Request
 type PRMetric struct {
+	Repository        string    `json:"repository"`
 	Number            int       `json:"number"`
 	Title             string    `json:"title"`
 	Author            string    `json:"author"`
@@ -101,9 +102,10 @@ func (uc *AggregateMergedPRUsecase) Execute(ctx context.Context, req AggregateMe
 	// Calculate metrics for each PR
 	slog.Debug("Calculating metrics for PRs", "count", len(prs))
 	metrics := make([]PRMetric, 0, len(prs))
+	repository := fmt.Sprintf("%s/%s", req.Owner, req.Repo)
 	for i, pr := range prs {
 		slog.Debug("Processing PR", "index", i+1, "total", len(prs), "prNumber", pr.Number, "title", pr.Title)
-		metric := uc.calculatePRMetrics(pr, req.ExcludeWeekends, req.IncludeBot)
+		metric := uc.calculatePRMetrics(repository, pr, req.ExcludeWeekends, req.IncludeBot)
 		metrics = append(metrics, metric)
 		slog.Debug("Calculated metrics for PR", "prNumber", pr.Number,
 			"untilFirstReview", metric.UntilFirstReview,
@@ -120,10 +122,11 @@ func (uc *AggregateMergedPRUsecase) Execute(ctx context.Context, req AggregateMe
 }
 
 // calculatePRMetrics processes raw PR data and calculates lead time metrics
-func (uc *AggregateMergedPRUsecase) calculatePRMetrics(pr github.PullRequest, excludeWeekends bool, includeBot bool) PRMetric {
+func (uc *AggregateMergedPRUsecase) calculatePRMetrics(repository string, pr github.PullRequest, excludeWeekends bool, includeBot bool) PRMetric {
 	slog.Debug("Calculating metrics for PR", "number", pr.Number, "title", pr.Title, "author", pr.Author.Login)
 
 	metric := PRMetric{
+		Repository:   repository,
 		Number:       pr.Number,
 		Title:        pr.Title,
 		Author:       pr.Author.Login,
