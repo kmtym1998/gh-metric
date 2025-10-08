@@ -114,6 +114,12 @@ func (b *SearchQueryBuilder) AddRepository(owner, repo string) *SearchQueryBuild
 	return b
 }
 
+// AddSort adds sorting to the query (sort:created only for now)
+func (b *SearchQueryBuilder) AddSort() *SearchQueryBuilder {
+	b.parts = append(b.parts, "sort:created")
+	return b
+}
+
 // Build creates the final search query string
 func (b *SearchQueryBuilder) Build() string {
 	return strings.Join(b.parts, " ")

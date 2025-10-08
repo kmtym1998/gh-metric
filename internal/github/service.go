@@ -45,6 +45,7 @@ func (s *Service) FetchMergedPRs(ctx context.Context, opts FetchPROptions) ([]Pu
 	queryBuilder := NewSearchQueryBuilder()
 	queryBuilder.AddRepository(opts.Owner, opts.Repo)
 	queryBuilder.AddDateRange(opts.Since, opts.Until)
+	queryBuilder.AddSort()
 
 	searchQuery := queryBuilder.Build()
 	slog.Info("Executing search query", "query", searchQuery)
