@@ -87,11 +87,6 @@ func (s *Service) FetchMergedPRs(ctx context.Context, opts FetchPROptions) ([]Pu
 		for _, pr := range response.Search.Nodes {
 			if slices.Contains(opts.TargetUsers, pr.Author.Login) || len(opts.TargetUsers) == 0 {
 				allPRs = append(allPRs, pr)
-				slog.Debug("Added PR to results",
-					"prNumber", pr.Number,
-					"author", pr.Author.Login,
-					"title", pr.Title,
-				)
 			} else {
 				slog.Debug("Skipped PR due to target user filter",
 					"prNumber", pr.Number,
