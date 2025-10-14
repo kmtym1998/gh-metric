@@ -32,12 +32,12 @@ type PRMetric struct {
 	Number            int       `json:"number"`
 	Title             string    `json:"title"`
 	Author            string    `json:"author"`
-	CreatedAt         time.Time `json:"createdAt"`
-	CreatedWeek       time.Time `json:"createdWeek"`  // The week (Monday) when the PR was created
-	CreatedMonth      time.Time `json:"createdMonth"` // The month (1st day) when the PR was created
-	MergedAt          time.Time `json:"mergedAt"`
-	MergedWeek        time.Time `json:"mergedWeek"`  // The week (Monday) when the PR was merged
-	MergedMonth       time.Time `json:"mergedMonth"` // The month (1st day) when the PR was merged
+	CreatedAt         time.Time `json:"created_at"`
+	CreatedWeek       time.Time `json:"created_week"`  // The week (Monday) when the PR was created
+	CreatedMonth      time.Time `json:"created_month"` // The month (1st day) when the PR was created
+	MergedAt          time.Time `json:"merged_at"`
+	MergedWeek        time.Time `json:"merged_week"`  // The week (Monday) when the PR was merged
+	MergedMonth       time.Time `json:"merged_month"` // The month (1st day) when the PR was merged
 	URL               string    `json:"url"`
 	UntilFirstReview  float64   `json:"until_first_review"`  // hours
 	UntilFirstApprove float64   `json:"until_first_approve"` // hours
