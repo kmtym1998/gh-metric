@@ -1,3 +1,5 @@
 /gh-metric
 /gh-metric.exe
 .vscode
+!.spec-workflow/
+.spec-workflow/approvals
