@@ -1,0 +1,260 @@
+query GetIssuesProjectFields(
+  $owner: String!
+  $repo: String!
+  $first: Int = 20
+  $after: String
+  $states: [IssueState!]
+  $labels: [String!]
+  $filterBy: IssueFilters
+  $orderBy: IssueOrder
+) {
+  repository(owner: $owner, name: $repo) {
+    issues(
+      first: $first
+      after: $after
+      states: $states
+      labels: $labels
+      filterBy: $filterBy
+      orderBy: $orderBy
+    ) {
+      totalCount
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      nodes {
+        id
+        number
+        title
+        state
+        createdAt
+        updatedAt
+        closedAt
+        author {
+          login
+        }
+        assignees(first: 5) {
+          nodes {
+            login
+          }
+        }
+        labels(first: 5) {
+          nodes {
+            name
+          }
+        }
+        milestone {
+          title
+          number
+        }
+
+        # Issue に紐づくプロジェクトアイテム
+        projectItems(first: 10) {
+          totalCount
+          nodes {
+            id
+            createdAt
+            updatedAt
+
+            # プロジェクト情報
+            project {
+              id
+              number
+              title
+              url
+              public
+            }
+
+            # すべてのフィールド値を取得
+            fieldValues(first: 20) {
+              nodes {
+                __typename
+
+                # テキストフィールド
+                ... on ProjectV2ItemFieldTextValue {
+                  id
+                  text
+                  createdAt
+                  updatedAt
+                  field {
+                    ... on ProjectV2Field {
+                      id
+                      name
+                    }
+                  }
+                }
+
+                # 数値フィールド
+                ... on ProjectV2ItemFieldNumberValue {
+                  id
+                  number
+                  createdAt
+                  updatedAt
+                  field {
+                    ... on ProjectV2Field {
+                      id
+                      name
+                    }
+                  }
+                }
+
+                # 単一選択フィールド
+                ... on ProjectV2ItemFieldSingleSelectValue {
+                  id
+                  name
+                  nameHTML
+                  color
+                  description
+                  createdAt
+                  updatedAt
+                  field {
+                    ... on ProjectV2SingleSelectField {
+                      id
+                      name
+                    }
+                  }
+                }
+
+                # 日付フィールド
+                ... on ProjectV2ItemFieldDateValue {
+                  id
+                  date
+                  createdAt
+                  updatedAt
+                  field {
+                    ... on ProjectV2Field {
+                      id
+                      name
+                    }
+                  }
+                }
+
+                # イテレーションフィールド
+                ... on ProjectV2ItemFieldIterationValue {
+                  id
+                  title
+                  startDate
+                  duration
+                  createdAt
+                  updatedAt
+                  field {
+                    ... on ProjectV2IterationField {
+                      id
+                      name
+                      configuration {
+                        duration
+                        startDay
+                        iterations {
+                          id
+                          title
+                          startDate
+                          duration
+                        }
+                      }
+                    }
+                  }
+                }
+
+                # マイルストーンフィールド
+                ... on ProjectV2ItemFieldMilestoneValue {
+                  milestone {
+                    id
+                    title
+                    number
+                    dueOn
+                    state
+                  }
+                  field {
+                    ... on ProjectV2Field {
+                      id
+                      name
+                    }
+                  }
+                }
+
+                # ラベルフィールド
+                ... on ProjectV2ItemFieldLabelValue {
+                  labels(first: 10) {
+                    nodes {
+                      id
+                      name
+                      color
+                      description
+                    }
+                  }
+                  field {
+                    ... on ProjectV2Field {
+                      id
+                      name
+                    }
+                  }
+                }
+
+                # ユーザーフィールド
+                ... on ProjectV2ItemFieldUserValue {
+                  users(first: 10) {
+                    nodes {
+                      id
+                      login
+                      name
+                      avatarUrl
+                    }
+                  }
+                  field {
+                    ... on ProjectV2Field {
+                      id
+                      name
+                    }
+                  }
+                }
+
+                # プルリクエストフィールド
+                ... on ProjectV2ItemFieldPullRequestValue {
+                  pullRequests(first: 10) {
+                    nodes {
+                      id
+                      number
+                      title
+                      url
+                      state
+                    }
+                  }
+                  field {
+                    ... on ProjectV2Field {
+                      id
+                      name
+                    }
+                  }
+                }
+
+                # レビュアーフィールド
+                ... on ProjectV2ItemFieldReviewerValue {
+                  reviewers(first: 10) {
+                    nodes {
+                      ... on User {
+                        id
+                        login
+                        name
+                      }
+                      ... on Team {
+                        id
+                        name
+                        slug
+                      }
+                    }
+                  }
+                  field {
+                    ... on ProjectV2Field {
+                      id
+                      name
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
