@@ -2,7 +2,7 @@
 
 イシュー集計機能の実装タスク。各タスク完了後は`go build`が成功することを確認する。
 
-- [ ] 1. GraphQL型定義の実装
+- [x] 1. GraphQL型定義の実装
 
   - File: internal/github/types.go
   - listIssueAndProjectFieldsQueryのレスポンス型を追加
@@ -12,7 +12,7 @@
   - _Requirements: 要求2（イシュー詳細情報の取得）_
   - _Prompt: Implement the task for spec issue-analytics, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Go Developer specializing in GraphQL API integration | Task: Add listIssuesResponse and issueNode types to internal/github/types.go following the structure defined in listIssueAndProjectFieldsQuery, using private types (lowercase) for internal use only | Restrictions: Do not modify existing types, maintain JSON tag consistency, follow existing code patterns | Success: Types compile without errors, JSON tags match GraphQL field names exactly, supports all fields from the query. After completion, edit tasks.md to mark this task as complete [-] to [x], use log-implementation tool to record the implementation details._
 
-- [ ] 2. UseCase層の型定義
+- [x] 2. UseCase層の型定義
 
   - File: internal/usecase/aggregate_issues.go (新規作成)
   - AggregateIssuesInput, AggregateIssuesOutput, IssueMetric型を定義
@@ -22,7 +22,7 @@
   - _Requirements: 要求1,2,3_
   - _Prompt: Implement the task for spec issue-analytics, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Go Backend Developer with expertise in Clean Architecture | Task: Create internal/usecase/aggregate_issues.go with Input/Output types and IssueMetric structure including week/month calculations and project field values, following patterns from aggregate_merged_pr.go | Restrictions: Maintain consistent naming with existing usecase types, include proper JSON tags, follow Clean Architecture principles | Success: All types are properly defined with JSON tags, follows existing usecase patterns, supports all required fields from requirements. After completion, edit tasks.md to mark this task as complete [-] to [x], use log-implementation tool to record the implementation details._
 
-- [ ] 3. GraphQLサービス拡張
+- [x] 3. GraphQLサービス拡張
 
   - File: internal/github/service.go
   - FetchIssuesメソッドを追加

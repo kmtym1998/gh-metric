@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"time"
 
 	"github.com/samber/lo"
 )
@@ -115,4 +116,112 @@ func (s *Service) FetchMergedPRs(ctx context.Context, opts FetchPROptions) ([]Pu
 
 	slog.Info("Total PRs fetched", "count", len(allPRs), "pages", pageCount)
 	return allPRs, nil
+}
+
+// FetchIssuesOptions contains options for fetching issues
+type FetchIssuesOptions struct {
+	Owner  string
+	Repo   string
+	Since  string   // Date in YYYY-MM-DD format
+	Until  string   // Date in YYYY-MM-DD format
+	State  string   // all, open, closed
+	Labels []string // Optional label filters
+	Limit  int
+}
+
+// FetchIssues fetches issues with project fields from GitHub API
+func (s *Service) FetchIssues(ctx context.Context, opts FetchIssuesOptions) ([]issueNode, error) {
+	slog.Debug("Starting FetchIssues", "opts", fmt.Sprintf("%+v", opts))
+
+	// Map state string to GraphQL IssueState array
+	var states []string
+	switch opts.State {
+	case "open":
+		states = []string{"OPEN"}
+	case "closed":
+		states = []string{"CLOSED"}
+	case "all", "":
+		states = []string{"OPEN", "CLOSED"}
+	default:
+		return nil, fmt.Errorf("invalid state: %s (must be 'open', 'closed', or 'all')", opts.State)
+	}
+
+	// Build filter for date range if provided
+	filterBy := make(map[string]interface{})
+	if opts.Since != "" {
+		filterBy["since"] = opts.Since + "T00:00:00Z"
+	}
+
+	// Build order by for consistent ordering
+	orderBy := map[string]string{
+		"field":     "CREATED_AT",
+		"direction": "DESC",
+	}
+
+	var allIssues []issueNode
+	var cursor *string
+	pageCount := 0
+	first := 100 // Max per page for GraphQL
+
+	// Paginate through all results
+	for {
+		pageCount++
+		slog.Debug("Fetching page", "pageNumber", pageCount, "cursor", lo.FromPtr(cursor))
+
+		variables := issueQueryVariables{
+			Owner:    opts.Owner,
+			Repo:     opts.Repo,
+			First:    first,
+			After:    cursor,
+			States:   states,
+			Labels:   opts.Labels,
+			FilterBy: filterBy,
+			OrderBy:  orderBy,
+		}
+
+		var response listIssuesResponse
+		if err := s.client.ExecuteQuery(listIssueAndProjectFieldsQuery, variables, &response); err != nil {
+			slog.Error("GraphQL query failed", "error", err, "variables", fmt.Sprintf("%+v", variables))
+			return nil, fmt.Errorf("failed to execute GraphQL query: %w", err)
+		}
+
+		slog.Debug("GraphQL response received",
+			"issuesCount", len(response.Repository.Issues.Nodes),
+			"totalCount", response.Repository.Issues.TotalCount,
+			"hasNextPage", response.Repository.Issues.PageInfo.HasNextPage,
+			"endCursor", response.Repository.Issues.PageInfo.EndCursor,
+		)
+
+		// Filter issues by date if Until is specified (since GraphQL doesn't support until filter)
+		for _, issue := range response.Repository.Issues.Nodes {
+			if opts.Until != "" {
+				untilDate := opts.Until + "T23:59:59Z"
+				if issue.CreatedAt.Format(time.RFC3339) > untilDate {
+					continue
+				}
+			}
+			allIssues = append(allIssues, issue)
+
+			if opts.Limit > 0 && len(allIssues) >= opts.Limit {
+				slog.Info("Reached limit of issues to fetch", "limit", opts.Limit)
+				break
+			}
+		}
+
+		slog.Info("Fetched issues", "count", len(response.Repository.Issues.Nodes), "total", len(allIssues))
+
+		if opts.Limit > 0 && len(allIssues) >= opts.Limit {
+			break
+		}
+
+		if !response.Repository.Issues.PageInfo.HasNextPage {
+			slog.Debug("No more pages available")
+			break
+		}
+
+		cursor = &response.Repository.Issues.PageInfo.EndCursor
+	}
+
+	slog.Info("Total issues fetched", "count", len(allIssues), "pages", pageCount)
+	return allIssues, nil
 }
