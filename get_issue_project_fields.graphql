@@ -61,8 +61,6 @@ query GetIssuesProjectFields(
               id
               number
               title
-              url
-              public
             }
 
             # すべてのフィールド値を取得
