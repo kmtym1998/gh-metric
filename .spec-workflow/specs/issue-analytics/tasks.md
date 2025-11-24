@@ -91,7 +91,7 @@
   - _Requirements: 非機能要求（信頼性）_
   - _Prompt: Implement the task for spec issue-analytics, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Go Developer with error handling expertise | Task: Implement comprehensive error handling in cmd/issues.go and aggregate_issues.go for scenarios like invalid dates, API errors, rate limits, network issues following existing error patterns | Restrictions: Must provide clear user-facing error messages, maintain consistent error handling style, use appropriate exit codes | Success: All error scenarios are properly handled with informative messages, graceful degradation where appropriate. After completion, edit tasks.md to mark this task as complete [-] to [x], use log-implementation tool to record the implementation details._
 
-- [ ] 10. 統合テスト
+- [x] 10. 統合テスト
 
   - File: cmd/issues_test.go (新規作成)
   - コマンドライン引数のパースとバリデーションのテスト
