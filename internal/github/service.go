@@ -168,15 +168,15 @@ func (s *Service) FetchIssues(ctx context.Context, opts FetchIssuesOptions) ([]I
 		pageCount++
 		slog.Debug("Fetching page", "pageNumber", pageCount, "cursor", lo.FromPtr(cursor))
 
-		variables := issueQueryVariables{
-			Owner:    opts.Owner,
-			Repo:     opts.Repo,
-			First:    first,
-			After:    cursor,
-			States:   states,
-			Labels:   opts.Labels,
-			FilterBy: filterBy,
-			OrderBy:  orderBy,
+		variables := map[string]interface{}{
+			"owner":    opts.Owner,
+			"repo":     opts.Repo,
+			"first":    first,
+			"after":    cursor,
+			"states":   states,
+			"labels":   opts.Labels,
+			"filterBy": filterBy,
+			"orderBy":  orderBy,
 		}
 
 		var response listIssuesResponse

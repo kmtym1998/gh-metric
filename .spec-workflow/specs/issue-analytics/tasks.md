@@ -101,7 +101,7 @@
   - _Requirements: 全要求_
   - _Prompt: Implement the task for spec issue-analytics, first run spec-workflow-guide to get the workflow guide then implement the task: Role: QA Engineer with Go testing expertise | Task: Create integration tests in cmd/issues_test.go covering command parsing, validation, and end-to-end flow with mocked GitHub service, following existing test patterns | Restrictions: Must test both success and error cases, maintain test isolation, use appropriate mocking strategies | Success: Tests cover major use cases and error scenarios, run reliably and quickly, provide good coverage of the feature. After completion, edit tasks.md to mark this task as complete [-] to [x], use log-implementation tool to record the implementation details._
 
-- [ ] 11. 手動テストと最終確認
+- [x] 11. 手動テストと最終確認
 
   - 実際のGitHubリポジトリでの動作確認
   - 各種パラメータの組み合わせテスト
