@@ -32,7 +32,7 @@
   - _Requirements: 要求1,2_
   - _Prompt: Implement the task for spec issue-analytics, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Go Developer with GraphQL expertise | Task: Add FetchIssues method to internal/github/service.go using listIssueAndProjectFieldsQuery, implementing pagination and error handling following the pattern of existing FetchPullRequests method | Restrictions: Must handle pagination correctly, maintain error handling consistency, use existing GraphQL client | Success: Method fetches issues with project fields, handles pagination properly, returns typed responses correctly. After completion, edit tasks.md to mark this task as complete [-] to [x], use log-implementation tool to record the implementation details._
 
-- [ ] 4. UseCase実装
+- [x] 4. UseCase実装
 
   - File: internal/usecase/aggregate_issues.go (Task 2で作成済み)
   - Executeメソッドの実装
@@ -42,7 +42,7 @@
   - _Requirements: 要求1,2,3_
   - _Prompt: Implement the task for spec issue-analytics, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Go Backend Developer with business logic expertise | Task: Implement Execute method in aggregate_issues.go to fetch issues via GitHub service, transform to IssueMetric with week/month calculations and project field value extraction, following patterns from aggregate_merged_pr.go | Restrictions: Must reuse existing utility functions for date calculations, handle nil values properly, maintain error handling consistency | Success: Execute method processes issues correctly, calculates week/month values, extracts project fields, handles all edge cases. After completion, edit tasks.md to mark this task as complete [-] to [x], use log-implementation tool to record the implementation details._
 
-- [ ] 5. CLIコマンド実装
+- [x] 5. CLIコマンド実装
 
   - File: cmd/issues.go (新規作成)
   - Cobraコマンドの定義と実装
@@ -52,7 +52,7 @@
   - _Requirements: 要求1,3,4_
   - _Prompt: Implement the task for spec issue-analytics, first run spec-workflow-guide to get the workflow guide then implement the task: Role: CLI Developer with Cobra framework expertise | Task: Create cmd/issues.go with Cobra command implementation including flags (owner, repo, since, until, state, limit), validation, and usecase invocation following patterns from cmd/merged_pr.go | Restrictions: Must validate date formats, handle default values correctly (state=all, limit=100), support current repo detection | Success: Command parses arguments correctly, validates inputs, invokes usecase properly, handles errors gracefully. After completion, edit tasks.md to mark this task as complete [-] to [x], use log-implementation tool to record the implementation details._
 
-- [ ] 6. ルートコマンドへの登録
+- [x] 6. ルートコマンドへの登録
 
   - File: cmd/root.go
   - issuesコマンドをサブコマンドとして追加
@@ -61,7 +61,7 @@
   - _Requirements: 要求4_
   - _Prompt: Implement the task for spec issue-analytics, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Go Developer | Task: Register issues command in cmd/root.go as a subcommand following the existing pattern for merged-pr command | Restrictions: Must maintain command initialization order, do not break existing commands | Success: Issues command is accessible via 'gh metric issues', help text displays correctly. After completion, edit tasks.md to mark this task as complete [-] to [x], use log-implementation tool to record the implementation details._
 
-- [ ] 7. プロジェクトフィールド値の処理実装
+- [x] 7. プロジェクトフィールド値の処理実装
 
   - File: internal/usecase/aggregate_issues.go
   - extractProjectFieldValuesヘルパー関数の実装
@@ -71,7 +71,7 @@
   - _Requirements: 要求2_
   - _Prompt: Implement the task for spec issue-analytics, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Go Developer with GraphQL and type assertion expertise | Task: Implement extractProjectFieldValues helper function in aggregate_issues.go to parse different field types (text, number, single_select, date, iteration, etc.) using type assertions on interface{} from GraphQL response | Restrictions: Must handle all field types from the query, safely handle nil values and type assertions, maintain clear error messages | Success: All project field types are correctly extracted and converted to ProjectFieldValue structs, handles missing or null fields gracefully. After completion, edit tasks.md to mark this task as complete [-] to [x], use log-implementation tool to record the implementation details._
 
-- [ ] 8. JSON出力フォーマッターの再利用確認
+- [x] 8. JSON出力フォーマッターの再利用確認
 
   - File: internal/output/json_formatter.go
   - AggregateIssuesOutputが正しくJSON出力されることを確認
@@ -81,7 +81,7 @@
   - _Requirements: 要求3_
   - _Prompt: Implement the task for spec issue-analytics, first run spec-workflow-guide to get the workflow guide then implement the task: Role: Go Developer | Task: Verify that existing JSONFormatter in internal/output/json_formatter.go correctly handles AggregateIssuesOutput structure, make minor adjustments if needed for proper JSON serialization | Restrictions: Do not break existing formatter functionality, maintain backward compatibility | Success: Issues data is properly formatted as JSON with correct field names and structure. After completion, edit tasks.md to mark this task as complete [-] to [x], use log-implementation tool to record the implementation details._
 
-- [ ] 9. エラーハンドリングの実装
+- [x] 9. エラーハンドリングの実装
 
   - File: cmd/issues.go, internal/usecase/aggregate_issues.go
   - 各種エラーシナリオの処理

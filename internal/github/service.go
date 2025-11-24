@@ -130,7 +130,7 @@ type FetchIssuesOptions struct {
 }
 
 // FetchIssues fetches issues with project fields from GitHub API
-func (s *Service) FetchIssues(ctx context.Context, opts FetchIssuesOptions) ([]issueNode, error) {
+func (s *Service) FetchIssues(ctx context.Context, opts FetchIssuesOptions) ([]IssueNode, error) {
 	slog.Debug("Starting FetchIssues", "opts", fmt.Sprintf("%+v", opts))
 
 	// Map state string to GraphQL IssueState array
@@ -158,7 +158,7 @@ func (s *Service) FetchIssues(ctx context.Context, opts FetchIssuesOptions) ([]i
 		"direction": "DESC",
 	}
 
-	var allIssues []issueNode
+	var allIssues []IssueNode
 	var cursor *string
 	pageCount := 0
 	first := 100 // Max per page for GraphQL

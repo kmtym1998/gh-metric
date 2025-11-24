@@ -84,13 +84,13 @@ type listIssuesResponse struct {
 				HasNextPage bool   `json:"hasNextPage"`
 				EndCursor   string `json:"endCursor"`
 			} `json:"pageInfo"`
-			Nodes []issueNode `json:"nodes"`
+			Nodes []IssueNode `json:"nodes"`
 		} `json:"issues"`
 	} `json:"repository"`
 }
 
-// issueNode represents a single issue with project fields
-type issueNode struct {
+// IssueNode represents a single issue with project fields
+type IssueNode struct {
 	ID        string    `json:"id"`
 	Number    int       `json:"number"`
 	Title     string    `json:"title"`
