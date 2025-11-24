@@ -3,3 +3,4 @@
 .vscode
 !.spec-workflow/
 .spec-workflow/approvals
+.spec-workflow/specs/**/Implementation Logs/
