@@ -6,7 +6,8 @@ import "time"
 
 type SearchResponse struct {
 	Search struct {
-		PageInfo struct {
+		IssueCount int `json:"issueCount"`
+		PageInfo   struct {
 			StartCursor string `json:"startCursor"`
 			EndCursor   string `json:"endCursor"`
 			HasNextPage bool   `json:"hasNextPage"`
@@ -116,7 +117,7 @@ type IssueNode struct {
 		Number int    `json:"number"`
 	} `json:"milestone"`
 	ProjectItems struct {
-		TotalCount int                `json:"totalCount"`
+		TotalCount int               `json:"totalCount"`
 		Nodes      []projectItemNode `json:"nodes"`
 	} `json:"projectItems"`
 }

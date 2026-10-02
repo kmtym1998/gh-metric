@@ -3,12 +3,14 @@ package github
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 // The GraphQL query as specified in the instructions
 const pullRequestQuery = `
 query PullRequestLeadTime($query: String!, $cursor: String) {
   search(query: $query, type: ISSUE, first: 50, after: $cursor) {
+    issueCount
     pageInfo {
       startCursor
       endCursor
@@ -364,6 +366,13 @@ func (b *SearchQueryBuilder) AddDateRange(since, until string) *SearchQueryBuild
 	if until != "" {
 		b.parts = append(b.parts, fmt.Sprintf("merged:<=%s", until))
 	}
+	return b
+}
+
+// AddCreatedSince adds a lower bound on the PR creation time.
+// Used as a cursor to continue fetching beyond the GitHub Search API result cap.
+func (b *SearchQueryBuilder) AddCreatedSince(createdSince time.Time) *SearchQueryBuilder {
+	b.parts = append(b.parts, fmt.Sprintf("created:>=%s", createdSince.UTC().Format(time.RFC3339)))
 	return b
 }
 

@@ -38,84 +38,122 @@ type FetchPROptions struct {
 	Limit           int
 }
 
-// FetchMergedPRs fetches merged pull requests from GitHub API
+// FetchMergedPRs fetches merged pull requests from GitHub API.
+//
+// The GitHub Search API returns at most 1000 results per query regardless of
+// pagination. To fetch beyond that, the search is re-issued with a
+// `created:>=<createdAt of the last PR>` condition, which works as a cursor
+// because results are sorted by creation time in ascending order.
 func (s *Service) FetchMergedPRs(ctx context.Context, opts FetchPROptions) ([]PullRequest, error) {
 	slog.Debug("Starting FetchMergedPRs", "opts", fmt.Sprintf("%+v", opts))
 
-	// Build the search query
-	queryBuilder := NewSearchQueryBuilder()
-	queryBuilder.AddRepository(opts.Owner, opts.Repo)
-	queryBuilder.AddDateRange(opts.Since, opts.Until)
-	queryBuilder.AddSort()
-
-	searchQuery := queryBuilder.Build()
-	slog.Info("Executing search query", "query", searchQuery)
-	slog.Debug("Query builder configuration",
-		"owner", opts.Owner,
-		"repo", opts.Repo,
-		"since", opts.Since,
-		"until", opts.Until,
-		"targetUsers", opts.TargetUsers,
-		"limit", opts.Limit,
-	)
-
 	var allPRs []PullRequest
-	var cursor *string
+	seen := make(map[int]struct{})
+	var createdSince *time.Time
 	pageCount := 0
 
-	// Paginate through all results
+	limitReached := func() bool {
+		return opts.Limit > 0 && len(allPRs) >= opts.Limit
+	}
+
 	for {
-		pageCount++
-		slog.Debug("Fetching page", "pageNumber", pageCount, "cursor", lo.FromPtr(cursor))
+		searchQuery := buildMergedPRSearchQuery(opts, createdSince)
+		slog.Info("Executing search query", "query", searchQuery)
 
-		variables := QueryVariables{
-			Query:  searchQuery,
-			Cursor: cursor,
-		}
+		fetchedInQuery := 0
+		issueCount := 0
+		var lastCreatedAt time.Time
+		var cursor *string
 
-		var response SearchResponse
-		if err := s.client.ExecuteQuery(pullRequestQuery, variables, &response); err != nil {
-			slog.Error("GraphQL query failed", "error", err, "variables", fmt.Sprintf("%+v", variables))
-			return nil, fmt.Errorf("failed to execute GraphQL query: %w", err)
-		}
+		// Paginate through the results of a single search query
+		for {
+			pageCount++
+			slog.Debug("Fetching page", "pageNumber", pageCount, "cursor", lo.FromPtr(cursor))
 
-		slog.Debug("GraphQL response received",
-			"searchResultsCount", len(response.Search.Nodes),
-			"hasNextPage", response.Search.PageInfo.HasNextPage,
-			"endCursor", response.Search.PageInfo.EndCursor,
-		)
-
-		for _, pr := range response.Search.Nodes {
-			if slices.Contains(opts.TargetUsers, pr.Author.Login) || len(opts.TargetUsers) == 0 {
-				allPRs = append(allPRs, pr)
-			} else {
-				slog.Debug("Skipped PR due to target user filter",
-					"prNumber", pr.Number,
-					"author", pr.Author.Login,
-					"targetUsers", opts.TargetUsers,
-				)
+			variables := QueryVariables{
+				Query:  searchQuery,
+				Cursor: cursor,
 			}
 
-			if opts.Limit > 0 && len(allPRs) >= opts.Limit {
-				slog.Info("Reached limit of PRs to fetch", "limit", opts.Limit)
+			var response SearchResponse
+			if err := s.client.ExecuteQuery(pullRequestQuery, variables, &response); err != nil {
+				slog.Error("GraphQL query failed", "error", err, "variables", fmt.Sprintf("%+v", variables))
+				return nil, fmt.Errorf("failed to execute GraphQL query: %w", err)
+			}
+
+			slog.Debug("GraphQL response received",
+				"searchResultsCount", len(response.Search.Nodes),
+				"issueCount", response.Search.IssueCount,
+				"hasNextPage", response.Search.PageInfo.HasNextPage,
+				"endCursor", response.Search.PageInfo.EndCursor,
+			)
+
+			issueCount = response.Search.IssueCount
+			fetchedInQuery += len(response.Search.Nodes)
+			if n := len(response.Search.Nodes); n > 0 {
+				lastCreatedAt = response.Search.Nodes[n-1].CreatedAt
+			}
+
+			for _, pr := range response.Search.Nodes {
+				// The created:>= cursor is inclusive, so PRs at the boundary can appear twice
+				if _, ok := seen[pr.Number]; ok {
+					continue
+				}
+				seen[pr.Number] = struct{}{}
+
+				if len(opts.TargetUsers) > 0 && !slices.Contains(opts.TargetUsers, pr.Author.Login) {
+					slog.Debug("Skipped PR due to target user filter",
+						"prNumber", pr.Number,
+						"author", pr.Author.Login,
+						"targetUsers", opts.TargetUsers,
+					)
+					continue
+				}
+
+				allPRs = append(allPRs, pr)
+				if limitReached() {
+					slog.Info("Reached limit of PRs to fetch", "limit", opts.Limit)
+					break
+				}
+			}
+			slog.Info("Fetched PRs", "count", len(response.Search.Nodes), "total", len(allPRs))
+
+			if limitReached() || !response.Search.PageInfo.HasNextPage {
 				break
 			}
+			cursor = &response.Search.PageInfo.EndCursor
 		}
-		slog.Info("Fetched PRs", "count", len(response.Search.Nodes), "total", len(allPRs))
-		if opts.Limit > 0 && len(allPRs) >= opts.Limit {
+
+		// Pagination ends when either the limit is reached or the search query is exhausted.
+		// A query is exhausted when every matching PR has been fetched; otherwise the result cap was hit.
+		if limitReached() || fetchedInQuery >= issueCount || fetchedInQuery == 0 {
 			break
 		}
 
-		if !response.Search.PageInfo.HasNextPage {
-			slog.Debug("No more pages available")
-			break
+		if createdSince != nil && !lastCreatedAt.After(*createdSince) {
+			return nil, fmt.Errorf("cannot advance search cursor: more than %d PRs created at %s", fetchedInQuery, lastCreatedAt)
 		}
-
-		cursor = &response.Search.PageInfo.EndCursor
+		slog.Info("Search result cap reached, continuing with created cursor",
+			"fetched", fetchedInQuery,
+			"issueCount", issueCount,
+			"createdSince", lastCreatedAt,
+		)
+		createdSince = &lastCreatedAt
 	}
 
 	slog.Info("Total PRs fetched", "count", len(allPRs), "pages", pageCount)
 	return allPRs, nil
+}
+
+func buildMergedPRSearchQuery(opts FetchPROptions, createdSince *time.Time) string {
+	queryBuilder := NewSearchQueryBuilder()
+	queryBuilder.AddRepository(opts.Owner, opts.Repo)
+	queryBuilder.AddDateRange(opts.Since, opts.Until)
+	if createdSince != nil {
+		queryBuilder.AddCreatedSince(*createdSince)
+	}
+	queryBuilder.AddSort()
+	return queryBuilder.Build()
 }
 
 // FetchIssuesOptions contains options for fetching issues
