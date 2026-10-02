@@ -10,9 +10,14 @@ import (
 	"github.com/samber/lo"
 )
 
+// queryExecutor abstracts the GraphQL client so that Service can be tested with a fake
+type queryExecutor interface {
+	ExecuteQuery(query string, variables any, result any) error
+}
+
 // Service provides GitHub API operations
 type Service struct {
-	client *Client
+	client queryExecutor
 }
 
 // NewService creates a new GitHub service
